@@ -6,23 +6,18 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.cors.CorsConfiguration;
 
+import java.net.ConnectException;
 import java.net.http.HttpResponse;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 import javax.servlet.http.HttpServletRequest;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Random;
 
 
 @RestController
@@ -40,7 +35,7 @@ public class WebController {
     }
 
     @CrossOrigin()
-    @GetMapping("/get_version")
+    @GetMapping("/info/get_version")
     public Map<String, Object> get_version(HttpServletRequest request) {
         Map<String, Object> ret = new HashMap<>();
         Map<String, Object> data = new HashMap<>();
@@ -63,6 +58,29 @@ public class WebController {
 
         data.put("version", version);
         data.put("notes", "提供产品的名称和价格");
+        List<String> ips = this.getLocalIp();
+        HttpHeaders headers = Collections.list(request.getHeaderNames()).stream()
+                .collect(HttpHeaders::new, (h, n) -> h.add(n, request.getHeader(n)), HttpHeaders::putAll);
+        data.put("ips", ips);
+        data.put("headers", headers);
+        data.put("color_mark", null);  // 自己不是染色实例
+        ret.put("data", data);
+        return ret;
+    }
+
+    @CrossOrigin()
+    @GetMapping("/detail/get_version")
+    public Map<String, Object> detail_get_version(HttpServletRequest request) {
+        Map<String, Object> ret = new HashMap<>();
+        Map<String, Object> data = new HashMap<>();
+        RestTemplate restTemplate = new RestTemplate();
+        ret.put("code", 200);
+        ret.put("msg", "ok");
+        String version = "V1.0.0";
+
+
+        data.put("version", version);
+        data.put("notes", "提供产品的详细介绍信息，为product-info提供年化利率的数据（非核心）");
         List<String> ips = this.getLocalIp();
         HttpHeaders headers = Collections.list(request.getHeaderNames()).stream()
                 .collect(HttpHeaders::new, (h, n) -> h.add(n, request.getHeader(n)), HttpHeaders::putAll);
@@ -128,7 +146,7 @@ public class WebController {
     }
 
     @CrossOrigin()
-    @GetMapping("/get_product")
+    @GetMapping("/info/get_product")
     public String get_product() {
         // 年化从detail获取
         String lv1 = get_annual("财富管家-初级版");
@@ -139,11 +157,42 @@ public class WebController {
     }
 
     private String get_annual( String Product) {
-        String url = String.format("http://%s:%s%s?product_name=%s", "product-detail", "8081", "/get_annual", Product); // 打包改成8080
+        String url = String.format("http://%s:%s%s?product_name=%s", "127.0.0.1", "8081", "/detail/get_annual", Product); // 打包改成8080
         System.out.println(url);
         RestTemplate restTemplate = new RestTemplate();
-        return restTemplate.getForObject(url, String.class);
+        try {
+            return restTemplate.getForObject(url, String.class);
+        } catch (RestClientException e) {
+            return "0.00%";
+        }
+
     }
+
+    @CrossOrigin()
+    @GetMapping("/detail/get_product_detail")
+    public Map<String, Object> get_product_detail() {
+
+        Map<String, Object> info_lv1 = new HashMap<>();
+        info_lv1.put("title", "财富管家-初级版");
+        info_lv1.put("detail", "财富管家-中级版主要投向中高等级<span style='color: #1976D2'>中短期债券</span>，远离股市波动。所投债券资产久期较短且信用等级较高，相对能更好地控制风险，力争匹配投资者的<span style='color: #1976D2'>短期闲钱理财需求</span>。");
+        Map<String, Object> info_lv2 = new HashMap<>();
+        info_lv2.put("title", "财富管家-中级版");
+        info_lv2.put("detail", "财富管家-中级版主要投向中高等级<span style='color: #1976D2'>中短期债券</span>，远离股市波动。所投债券资产久期较短且信用等级较高，相对能更好地控制风险，力争匹配投资者的<span style='color: #1976D2'>短期闲钱理财需求</span>。");
+        Map<String, Object> info_lv3 = new HashMap<>();
+        info_lv3.put("title", "财富管家-初级版");
+        info_lv3.put("detail", "财富管家-高级版主要投向中高等级<span style='color: #1976D2'>中短期债券</span>，远离股市波动。所投债券资产久期较短且信用等级较高，相对能更好地控制风险，力争匹配投资者的<span style='color: #1976D2'>短期闲钱理财需求</span>。");
+        Map<String, Object> info_lv4 = new HashMap<>();
+        info_lv4.put("title", "财富管家-初级版");
+        info_lv4.put("detail", "财富管家-终身版主要投向中高等级<span style='color: #1976D2'>中短期债券</span>，远离股市波动。所投债券资产久期较短且信用等级较高，相对能更好地控制风险，力争匹配投资者的<span style='color: #1976D2'>短期闲钱理财需求</span>。");
+        List<Map<String, Object>> infos = Arrays.asList(info_lv1, info_lv2, info_lv3, info_lv4);
+        Map<String, Object> ret = new HashMap<>();
+
+        ret.put("code", 200);
+        ret.put("msg", "ok");
+        ret.put("data", infos);
+        return ret;
+    }
+
 
 }
 
