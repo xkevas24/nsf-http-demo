@@ -2,6 +2,8 @@ package com.qz.nsf.ddeemmoo;
 // import com.mashape.unirest.http.Unirest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -10,9 +12,11 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.cors.CorsConfiguration;
+import javax.servlet.http.HttpServletRequest;
 
 import java.net.ConnectException;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import javax.servlet.http.HttpServletRequest;
@@ -23,6 +27,14 @@ import java.net.NetworkInterface;
 @RestController
 
 public class WebController {
+    public Map<String, Object> fake_429() {
+        Map<String, Object> ret = new HashMap<>();
+        ret.put("timestamp", "2023-10-24T02:36:33.030+00:00");
+        ret.put("status", "429");
+        ret.put("error", "Too Many Requests");
+        ret.put("path", "/*");
+        return ret;
+    }
     @CrossOrigin()
     @GetMapping("/")
     public String index() {
@@ -65,6 +77,7 @@ public class WebController {
         data.put("headers", headers);
         data.put("color_mark", null);  // 自己不是染色实例
         ret.put("data", data);
+        // return fake_429();
         return ret;
     }
 
@@ -191,6 +204,25 @@ public class WebController {
         ret.put("msg", "ok");
         ret.put("data", infos);
         return ret;
+    }
+
+    @CrossOrigin()
+    @GetMapping("/api")
+    public ResponseEntity<String> apiRedirect(@RequestParam String entry, @RequestParam(required = false) String color_mark, HttpServletRequest request) {
+        HttpHeaders headers = new HttpHeaders();
+        if (color_mark != null) {
+            headers.add("X-Nsf-Mark", color_mark);
+        }
+        String url = "http://" + entry + "?" + request.getQueryString();
+        System.out.println(url);
+        RestTemplate restTemplate = new RestTemplate();
+        try {
+            ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class, headers);
+            String responseBody = new String(response.getBody(), StandardCharsets.UTF_8);
+            return new ResponseEntity<>(responseBody, response.getStatusCode());
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
 
