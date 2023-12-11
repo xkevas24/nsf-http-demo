@@ -14,6 +14,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.web.cors.CorsConfiguration;
 import javax.servlet.http.HttpServletRequest;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
@@ -22,6 +25,10 @@ import java.util.*;
 import javax.servlet.http.HttpServletRequest;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.util.concurrent.TimeUnit;
+
+import static com.qz.nsf.ddeemmoo.DdeemmooApplication.global_version;
+import static com.qz.nsf.ddeemmoo.DdeemmooApplication.global_color;
 
 
 @RestController
@@ -38,7 +45,7 @@ public class WebController {
     @CrossOrigin()
     @GetMapping("/")
     public String index() {
-        return "Welcome to use Netease Qingzhou Cloud Native Service!";
+        return "Welcome to use Netease Qingzhou Cloud Native Service! - " + global_version;
     }
     @CrossOrigin()
     @GetMapping("/health")
@@ -54,20 +61,7 @@ public class WebController {
         RestTemplate restTemplate = new RestTemplate();
         ret.put("code", 200);
         ret.put("msg", "ok");
-        String version = "V2.0.0";
-        /* String version1 = "V1.0.0";
-        String version2 = "V2.0.0";
-
-        Random rand = new Random();
-        int num = rand.nextInt(100); // 随机生成一个0~99之间的整数
-
-        if (num < 50) {
-            version = version1;
-        } else {
-            version = version2;
-        } */
-
-
+        String version = global_version;
         data.put("version", version);
         data.put("notes", "提供产品的名称和价格");
         List<String> ips = this.getLocalIp();
@@ -75,7 +69,7 @@ public class WebController {
                 .collect(HttpHeaders::new, (h, n) -> h.add(n, request.getHeader(n)), HttpHeaders::putAll);
         data.put("ips", ips);
         data.put("headers", headers);
-        data.put("color_mark", null);  // 自己不是染色实例
+        data.put("color_mark", global_color);  // 自己不是染色实例
         ret.put("data", data);
         // return fake_429();
         return ret;
@@ -89,8 +83,7 @@ public class WebController {
         RestTemplate restTemplate = new RestTemplate();
         ret.put("code", 200);
         ret.put("msg", "ok");
-        String version = "V1.0.0";
-
+        String version = global_version;
 
         data.put("version", version);
         data.put("notes", "提供产品的详细介绍信息，为product-info提供年化利率的数据（非核心）");
@@ -99,9 +92,28 @@ public class WebController {
                 .collect(HttpHeaders::new, (h, n) -> h.add(n, request.getHeader(n)), HttpHeaders::putAll);
         data.put("ips", ips);
         data.put("headers", headers);
-        data.put("color_mark", null);  // 自己不是染色实例
+        // data.put("color_mark", "blue");  // 自己不是染色实例
+        data.put("color_mark", global_color);  // 自己不是染色实例
         ret.put("data", data);
         return ret;
+    }
+
+    @CrossOrigin()
+    @GetMapping("/detail/get_annual")
+    public String getAnnual(@RequestParam String product_name) {
+        String annual = "0.00%";
+
+        if ("财富管家-初级版".equals(product_name)) {
+            annual = "3.33%";
+        } else if ("财富管家-中级版".equals(product_name)) {
+            annual = "3.60%";
+        } else if ("财富管家-高级版".equals(product_name)) {
+            annual = "4.49%";
+        } else if ("财富管家-终身版".equals(product_name)) {
+            annual = "5.06%";
+        }
+
+        return annual;
     }
 
     @CrossOrigin()
@@ -170,12 +182,14 @@ public class WebController {
     }
 
     private String get_annual( String Product) {
-        String url = String.format("http://%s:%s%s?product_name=%s", "127.0.0.1", "8081", "/detail/get_annual", Product); // 打包改成8080
+        String url = String.format("http://%s%s?product_name=%s", "product-detail", "/detail/get_annual", Product);
         System.out.println(url);
         RestTemplate restTemplate = new RestTemplate();
         try {
             return restTemplate.getForObject(url, String.class);
         } catch (RestClientException e) {
+            System.err.println("An error occurred while making a REST call: " + e.getMessage());
+            e.printStackTrace();
             return "0.00%";
         }
 
@@ -187,7 +201,7 @@ public class WebController {
 
         Map<String, Object> info_lv1 = new HashMap<>();
         info_lv1.put("title", "财富管家-初级版");
-        info_lv1.put("detail", "财富管家-中级版主要投向中高等级<span style='color: #1976D2'>中短期债券</span>，远离股市波动。所投债券资产久期较短且信用等级较高，相对能更好地控制风险，力争匹配投资者的<span style='color: #1976D2'>短期闲钱理财需求</span>。");
+        info_lv1.put("detail", "财富管家-初级版主要投向低等级<span style='color: #1976D2'>短期债券</span>，远离股市波动。所投债券资产久期较短且信用等级较高，相对能更好地控制风险，力争匹配投资者的<span style='color: #1976D2'>短期闲钱理财需求</span>。");
         Map<String, Object> info_lv2 = new HashMap<>();
         info_lv2.put("title", "财富管家-中级版");
         info_lv2.put("detail", "财富管家-中级版主要投向中高等级<span style='color: #1976D2'>中短期债券</span>，远离股市波动。所投债券资产久期较短且信用等级较高，相对能更好地控制风险，力争匹配投资者的<span style='color: #1976D2'>短期闲钱理财需求</span>。");
@@ -225,6 +239,68 @@ public class WebController {
         }
     }
 
+
+    @CrossOrigin()
+    @GetMapping("/test_discovery")
+    public String apiRedirect() {
+        Properties properties = new Properties();
+        try {
+            InputStream inputStream = WebController.class.getClassLoader().getResourceAsStream("application.properties");
+            properties.load(inputStream);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        String value = properties.getProperty("testhost");
+        System.out.println("value: " + value);
+
+
+        String url = "http://127.0.0.1:8999/info/get_version";
+        RestTemplate restTemplate = new RestTemplate();
+        try {
+            return restTemplate.getForObject(url, String.class);
+        } catch (RestClientException e) {
+            return "0.00%";
+        }
+    }
+
+    @CrossOrigin()
+    @GetMapping("/unstable")
+    public ResponseEntity<String> unstable(@RequestParam(required = false, defaultValue = "500") int code,
+                                           @RequestParam(required = false, defaultValue = "0.5") double chance) {
+        if (chance == 1) {
+            return ResponseEntity.status(code).body("Error!");
+        }
+
+        if (Math.random() < chance) {
+            return ResponseEntity.status(code).body("Error!");
+        } else {
+            return ResponseEntity.ok("Work!");
+        }
+    }
+
+    @CrossOrigin()
+    @GetMapping("/delay_return")
+    public String delayReturn(@RequestParam(required = false, defaultValue = "2") int seconds) {
+        try {
+            TimeUnit.SECONDS.sleep(seconds); // 延迟指定的秒数
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return "Delayed response after " + seconds + " seconds";
+    }
+
+    @CrossOrigin()
+    @GetMapping("/cpu_max")
+    public String cpuMax() {
+        new Thread(this::simulateCpuUsage).start();
+        return "Processing...";
+    }
+
+    private void simulateCpuUsage() {
+        while (true) {
+            // 模拟CPU密集型任务
+        }
+    }
 
 }
 
